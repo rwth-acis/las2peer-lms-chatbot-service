@@ -1,0 +1,2 @@
+rootProject.name = 'las2peer-lms-chatbot-service'
+include('lms-chatbot-service')

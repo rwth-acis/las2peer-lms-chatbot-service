@@ -22,7 +22,7 @@ function set_in_service_config {
 
 
 # set defaults for optional service parameters
-[[ -z "${SERVICE_PASSPHRASE}" ]] && export SERVICE_PASSPHRASE='template'
+[[ -z "${SERVICE_PASSPHRASE}" ]] && export SERVICE_PASSPHRASE='lms-chatbot'
 
 # wait for any bootstrap host to be available
 if [[ ! -z "${BOOTSTRAP}" ]]; then

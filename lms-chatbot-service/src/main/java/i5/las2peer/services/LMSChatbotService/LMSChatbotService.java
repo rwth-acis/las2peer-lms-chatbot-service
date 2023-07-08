@@ -6,7 +6,11 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpResponse;
+import java.net.http.HttpRequest;
 
+import javax.mail.internet.ContentType;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -57,14 +61,14 @@ import net.minidev.json.parser.ParseException;
 				license = @License(
 						name = "LCS",
 						url = "https://github.com/rwth-acis/las2peer-lms-chatbot-service/blob/main/LICENSE")))
-@ServicePath("/chat")
+@ServicePath("/lms-chatbot")
 public class LMSChatbotService extends RESTService {
 	/*
 	 * POST method to get the chat response from the LMS-Chatbot-Service
 	 */
 	@POST
 	@Path("/chat")
-	@Produces(MediaType.TEXT_PLAIN)
+	@Produces(MediaType.APPLICATION_JSON)
 	@ApiResponses(
 			value = { @ApiResponse(
 					code = HttpURLConnection.HTTP_OK,
@@ -74,48 +78,44 @@ public class LMSChatbotService extends RESTService {
 			notes = "Method that returns a phrase containing the received input.")
 	public Response chat(String body) {
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
-		JSONObject bodyJson = null;
-		JSONObject payloadJson = new JSONObject();
-		JSONObject monitorEvent51 = new JSONObject();
-		final long start = System.currentTimeMillis();
-		try {
-			bodyJson = (JSONObject) p.parse(body);
-		} catch (ParseException e) {
-			e.printStackTrace();
-		}
-		payloadJson.put("message", bodyJson.getAsString("chat"));
+        JSONObject json = null;
+        JSONObject chatResponse = new JSONObject();
+        JSONObject newEvent = new JSONObject();
+        String message = null;
 
-		// get response result from python
-		try {
-			String line = null;
-			StringBuilder sb = new StringBuilder ();
-			String res = null;
+        try {
+            json = (JSONObject) p.parse(body);
+            message = json.getAsString("msg");
+            newEvent.put("msg", message);
 
-			URL url = UriBuilder.fromPath("http://localhost:5000/chat")
-						.path(URLEncoder.encode(payloadJson.toString(), "UTF-8").replace("+","%20"))
-						.build()
-						.toURL();
-			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-			connection.setRequestMethod("POST");
-			connection.connect();
-			BufferedReader rd  = new BufferedReader( new InputStreamReader(connection.getInputStream(), "UTF-8"));
+            // Make the POST request to localhost:5000/chat
+            String url = "http://localhost:5000/chat";
+            HttpClient httpClient = HttpClient.newHttpClient();
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(UriBuilder.fromUri(url).build())
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(newEvent.toJSONString()))
+                    .build();
 
-			while ((line = rd.readLine()) != null ) {
-				sb.append(line);
-			}
-			res = sb.toString();
-			monitorEvent51.put("Task", "Response Result");
-			monitorEvent51.put("Process time", System.currentTimeMillis() - start);
-            Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_51,monitorEvent51.toString());
-			return Response.ok().entity(res).build();
-		} catch (IOException e) {
-			e.printStackTrace();
-			bodyJson.put("text", "An error has occurred.");
-			monitorEvent51.put("Task", "Error: Response failed.");
-			monitorEvent51.put("Process time", System.currentTimeMillis() - start);
-            Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_51,monitorEvent51.toString());
-			return Response.ok().entity(bodyJson.toString()).build();
-		}
+            // Send the request
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            int responseCode = response.statusCode();
+
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                // Update chatResponse with the result from the POST request
+                chatResponse.put("text", response.body());
+            } else {
+                // Handle unsuccessful response
+                chatResponse.appendField("text", "An error has occurred.");
+            }
+
+        } catch (ParseException | IOException | InterruptedException e) {
+            e.printStackTrace();
+            chatResponse.appendField("text", "An error has occurred.");
+        }
+
+        return Response.ok().entity(chatResponse.toJSONString()).build();
+
 	}
 
 }

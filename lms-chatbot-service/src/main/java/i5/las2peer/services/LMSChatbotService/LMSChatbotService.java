@@ -33,6 +33,7 @@ import io.swagger.annotations.Contact;
 import io.swagger.annotations.Info;
 import io.swagger.annotations.License;
 import io.swagger.annotations.SwaggerDefinition;
+
 import net.minidev.json.JSONObject;
 import net.minidev.json.parser.JSONParser;
 import net.minidev.json.parser.ParseException;
@@ -82,10 +83,13 @@ public class LMSChatbotService extends RESTService {
         JSONObject chatResponse = new JSONObject();
         JSONObject newEvent = new JSONObject();
         String message = null;
+        String channel = null;
 
         try {
             json = (JSONObject) p.parse(body);
             message = json.getAsString("msg");
+            channel = json.getAsString("channel");
+            chatResponse.put("channel", channel);
             newEvent.put("msg", message);
 
             // Make the POST request to localhost:5000/chat
@@ -114,8 +118,8 @@ public class LMSChatbotService extends RESTService {
             chatResponse.appendField("text", "An error has occurred.");
         }
 
-        return Response.ok().entity(chatResponse.toJSONString()).build();
+        return Response.ok().entity(chatResponse).build();
 
 	}
-
+ 
 }

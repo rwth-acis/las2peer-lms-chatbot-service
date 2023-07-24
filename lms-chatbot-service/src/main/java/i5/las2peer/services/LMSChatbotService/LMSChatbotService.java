@@ -38,18 +38,6 @@ import net.minidev.json.JSONObject;
 import net.minidev.json.parser.JSONParser;
 import net.minidev.json.parser.ParseException;
 
-// TODO Describe your own service
-/**
- * las2peer-lms-chatbot-service
- * 
- * This is a template for a very basic las2peer service that uses the las2peer WebConnector for RESTful access to it.
- * 
- * Note: If you plan on using Swagger you should adapt the information below in the SwaggerDefinition annotation to suit
- * your project. If you do not intend to provide a Swagger documentation of your service API, the entire Api and
- * SwaggerDefinition annotation should be removed.
- * 
- */
-// TODO Adjust the following configuration
 @Api
 @SwaggerDefinition(
 		info = @Info(

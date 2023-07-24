@@ -91,6 +91,7 @@ public class LMSChatbotService extends RESTService {
             channel = json.getAsString("channel");
             chatResponse.put("channel", channel);
             newEvent.put("msg", message);
+            newEvent.put("channel", channel);
 
             // Make the POST request to localhost:5000/chat
             String url = "http://localhost:5000/chat";

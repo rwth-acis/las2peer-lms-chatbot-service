@@ -38,6 +38,7 @@ import net.minidev.json.JSONObject;
 import net.minidev.json.parser.JSONParser;
 import net.minidev.json.parser.ParseException;
 
+
 @Api
 @SwaggerDefinition(
 		info = @Info(
@@ -52,6 +53,11 @@ import net.minidev.json.parser.ParseException;
 						url = "https://github.com/rwth-acis/las2peer-lms-chatbot-service/blob/main/LICENSE")))
 @ServicePath("/lms-chatbot")
 public class LMSChatbotService extends RESTService {
+    public static String removeBrackets(String input) {
+        String clearString = input.replaceAll("[<>]", " ' ");
+        
+        return clearString;
+    }
 	/*
 	 * POST method to get the chat response from the LMS-Chatbot-Service
 	 */
@@ -95,8 +101,10 @@ public class LMSChatbotService extends RESTService {
             int responseCode = response.statusCode();
 
             if (responseCode == HttpURLConnection.HTTP_OK) {
+                String final_response = removeBrackets(response.body());
+                System.out.print("Response from service: " + final_response);
                 // Update chatResponse with the result from the POST request
-                chatResponse.put("text", response.body());
+                chatResponse.put("text", final_response);
             } else {
                 // Handle unsuccessful response
                 chatResponse.appendField("text", "An error has occurred.");

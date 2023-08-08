@@ -8,9 +8,12 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.net.http.HttpRequest;
 
 import javax.mail.internet.ContentType;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -54,9 +57,19 @@ import net.minidev.json.parser.ParseException;
 @ServicePath("/lms-chatbot")
 public class LMSChatbotService extends RESTService {
     public static String removeBrackets(String input) {
-        String clearString = input.replaceAll("[<>]", " ' ");
-        
-        return clearString;
+        String regex = "(?<=<)[^>\s]+(?=>)";
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(input);
+        int x;
+        int y;
+        StringBuilder result = new StringBuilder(input);
+        while (matcher.find()) {
+            x = matcher.start()-1;
+            result.setCharAt(x, '\'');
+            y = matcher.end();
+            result.setCharAt(y, '\'');
+        }
+        return result.toString();    
     }
 	/*
 	 * POST method to get the chat response from the LMS-Chatbot-Service
@@ -64,13 +77,15 @@ public class LMSChatbotService extends RESTService {
 	@POST
 	@Path("/chat")
 	@Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
 	@ApiResponses(
-			value = { @ApiResponse(
-					code = HttpURLConnection.HTTP_OK,
-					message = "Everything is okay!") })
+        value = { 
+                @ApiResponse(
+                    code = HttpURLConnection.HTTP_OK,
+                    message = "Everything is okay!")})
 	@ApiOperation(
-			value = "getInput",
-			notes = "Method that returns a phrase containing the received input.")
+			value = "Get the chat response from the LMS-Chatbot-Service",
+			notes = "Returns the chat response from the LMS-Chatbot-Service")
 	public Response chat(String body) {
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
         JSONObject json = null;
@@ -78,9 +93,12 @@ public class LMSChatbotService extends RESTService {
         JSONObject newEvent = new JSONObject();
         String message = null;
         String channel = null;
+        JSONObject monitorEvent61 = new JSONObject();
+        final long start = System.currentTimeMillis();
 
         try {
             json = (JSONObject) p.parse(body);
+            System.out.println(json.toJSONString());
             message = json.getAsString("msg");
             channel = json.getAsString("channel");
             chatResponse.put("channel", channel);
@@ -105,18 +123,24 @@ public class LMSChatbotService extends RESTService {
                 System.out.print("Response from service: " + final_response);
                 // Update chatResponse with the result from the POST request
                 chatResponse.put("text", final_response);
-            } else {
+            } else if (responseCode == HttpURLConnection.HTTP_INTERNAL_ERROR) {
                 // Handle unsuccessful response
                 chatResponse.appendField("text", "An error has occurred.");
             }
 
+            monitorEvent61.put("Task", "Answer Generation");
+            monitorEvent61.put("Process time", System.currentTimeMillis() - start);
+            Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_61,monitorEvent61.toString());
+
         } catch (ParseException | IOException | InterruptedException e) {
             e.printStackTrace();
             chatResponse.appendField("text", "An error has occurred.");
+        } catch (Exception e) {
+            e.printStackTrace();
+            chatResponse.appendField("text", "An unknown error has occurred.");
         }
 
         return Response.ok().entity(chatResponse).build();
-
 	}
  
 }

@@ -8,6 +8,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
+import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.net.http.HttpRequest;
@@ -56,6 +57,8 @@ import net.minidev.json.parser.ParseException;
 						url = "https://github.com/rwth-acis/las2peer-lms-chatbot-service/blob/main/LICENSE")))
 @ServicePath("/lms-chatbot")
 public class LMSChatbotService extends RESTService {
+    private static HashMap<String, Boolean> isActive = new HashMap<String, Boolean>();
+    
     public static String removeBrackets(String input) {
         String regex = "(?<=<)[^>\s]+(?=>)";
         Pattern pattern = Pattern.compile(regex);
@@ -86,61 +89,64 @@ public class LMSChatbotService extends RESTService {
 	@ApiOperation(
 			value = "Get the chat response from the LMS-Chatbot-Service",
 			notes = "Returns the chat response from the LMS-Chatbot-Service")
-	public Response chat(String body) {
+	public Response chat(String body) throws IOException, ParseException {
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
-        JSONObject json = null;
+        JSONObject json = new JSONObject();
         JSONObject chatResponse = new JSONObject();
         JSONObject newEvent = new JSONObject();
-        String message = null;
-        String channel = null;
-        JSONObject monitorEvent61 = new JSONObject();
-        final long start = System.currentTimeMillis();
-
+        // JSONObject monitorEvent61 = new JSONObject();
+        // final long start = System.currentTimeMillis();
+        json = (JSONObject) p.parse(body);
+        System.out.println(json.toJSONString());
+        String message = json.getAsString("msg");
+        String channel = json.getAsString("channel");
+        chatResponse.put("channel", channel);
+        newEvent.put("msg", message);
+        newEvent.put("channel", channel);
+        isActive.put(channel, true);
         try {
-            json = (JSONObject) p.parse(body);
-            System.out.println(json.toJSONString());
-            message = json.getAsString("msg");
-            channel = json.getAsString("channel");
-            chatResponse.put("channel", channel);
-            newEvent.put("msg", message);
-            newEvent.put("channel", channel);
+			new Thread(new Runnable() {
+				@Override
+				public void run() {
+                    try {
+                        // Make the POST request to localhost:5000/chat
+                        String url = "http://localhost:5000/chat";
+                        HttpClient httpClient = HttpClient.newHttpClient();
+                        HttpRequest httpRequest = HttpRequest.newBuilder()
+                                .uri(UriBuilder.fromUri(url).build())
+                                .header("Content-Type", "application/json")
+                                .POST(HttpRequest.BodyPublishers.ofString(newEvent.toJSONString()))
+                                .build();
 
-            // Make the POST request to localhost:5000/chat
-            String url = "http://localhost:5000/chat";
-            HttpClient httpClient = HttpClient.newHttpClient();
-            HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(UriBuilder.fromUri(url).build())
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(newEvent.toJSONString()))
-                    .build();
+                        // Send the request
+                        HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+                        int responseCode = response.statusCode();
 
-            // Send the request
-            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            int responseCode = response.statusCode();
+                        if (responseCode == HttpURLConnection.HTTP_OK) {
+                            String final_response = removeBrackets(response.body());
+                            System.out.print("Response from service: " + final_response);
+                            // Update chatResponse with the result from the POST request
+                            chatResponse.put("text", final_response);
+                        } else if (responseCode == HttpURLConnection.HTTP_INTERNAL_ERROR) {
+                            // Handle unsuccessful response
+                            chatResponse.appendField("text", "An error has occurred.");
+                        }
 
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                String final_response = removeBrackets(response.body());
-                System.out.print("Response from service: " + final_response);
-                // Update chatResponse with the result from the POST request
-                chatResponse.put("text", final_response);
-            } else if (responseCode == HttpURLConnection.HTTP_INTERNAL_ERROR) {
-                // Handle unsuccessful response
-                chatResponse.appendField("text", "An error has occurred.");
-            }
+                    } catch (Exception e) {
+						e.printStackTrace();
+						isActive.put(channel, false);
+						chatResponse.put("text", e.toString());
+                    }
 
-            monitorEvent61.put("Task", "Answer Generation");
-            monitorEvent61.put("Process time", System.currentTimeMillis() - start);
-            Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_61,monitorEvent61.toString());
-
-        } catch (ParseException | IOException | InterruptedException e) {
-            e.printStackTrace();
-            chatResponse.appendField("text", "An error has occurred.");
+                    isActive.put(channel, false);
+                }
+            }).start();
+            return Response.ok().entity(chatResponse).build();
         } catch (Exception e) {
             e.printStackTrace();
             chatResponse.appendField("text", "An unknown error has occurred.");
+            return Response.ok().entity(chatResponse).build();
         }
-
-        return Response.ok().entity(chatResponse).build();
 	}
  
 }

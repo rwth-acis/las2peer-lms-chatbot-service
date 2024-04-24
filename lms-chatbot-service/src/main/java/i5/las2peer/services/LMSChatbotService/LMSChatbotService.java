@@ -177,7 +177,7 @@ public class LMSChatbotService extends RESTService {
         
         isActive.put(channel, true);
 
-        biwibotAsync(message, channel, sbfmUrl);
+        lmsbotAsync(message, channel, sbfmUrl);
 
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -198,7 +198,7 @@ public class LMSChatbotService extends RESTService {
         return Response.ok().entity(chatResponse.toString()).build();
     }
 
-    public void biwibotAsync(String sbfmUrl, String msg, String channel){
+    public void lmsbotAsync(String sbfmUrl, String msg, String channel){
         JSONObject chatResponse = new JSONObject();
         JSONObject newEvent = new JSONObject();
         chatResponse.put("closeContext", false);
@@ -208,12 +208,11 @@ public class LMSChatbotService extends RESTService {
                 public void run() {
                     try {
                         System.out.println("Thread started.");
-                        String question = msg;
                         newEvent.put("msg", msg);
                         newEvent.put("channel", channel);
 
                         // Make the POST request to localhost:5000/chat
-                        String url = "localhost:5000";
+                        String url = "http://localhost:5000/chat";
                         HttpClient httpClient = HttpClient.newHttpClient();
                         HttpRequest httpRequest = HttpRequest.newBuilder()
                                 .uri(UriBuilder.fromUri(url).build())

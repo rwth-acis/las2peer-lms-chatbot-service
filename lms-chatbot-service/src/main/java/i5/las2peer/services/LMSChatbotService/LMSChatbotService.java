@@ -193,7 +193,7 @@ public class LMSChatbotService extends RESTService {
                     responseOK=false;
                     scheduler.shutdown();
                 }
-            }, 0, 20, TimeUnit.SECONDS);
+            }, 5, 20, TimeUnit.SECONDS);
         }
 
         return Response.ok().entity(chatResponse.toString()).build();
@@ -230,7 +230,7 @@ public class LMSChatbotService extends RESTService {
                             responseOK = true;
                             System.out.println("Response from service: " + serviceResponse.body());
                             chatResponse.put("text", serviceResponse.body());
-                            // callback(sbfmUrl, chatResponse);
+                            callback(sbfmUrl, chatResponse);
                         } else if (responseCode == HttpURLConnection.HTTP_INTERNAL_ERROR) {
                             responseOK = true;
                             // Handle unsuccessful response

@@ -178,7 +178,7 @@ public class LMSChatbotService extends RESTService {
         
         isActive.put(channel, true);
         System.out.println("Calling async function");
-        lmsbotAsync(message, channel, sbfmUrl);
+        lmsbotAsync(sbfmUrl, message, channel);
 
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -187,6 +187,7 @@ public class LMSChatbotService extends RESTService {
             chatResponse.put("closeContext", false);
 
             scheduler.scheduleAtFixedRate(() -> {
+                System.out.println("callback in scheduler.");
                 callback(sbfmUrl, chatResponse);
                 if (responseOK) {
                     chatResponse.clear();

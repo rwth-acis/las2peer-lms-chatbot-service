@@ -163,20 +163,21 @@ public class LMSChatbotService extends RESTService {
         json = (JSONObject) p.parse(body);
         String message = json.getAsString("msg");
         String channel = json.getAsString("channel");
-        String sbfmUrl = "https://git.tech4comp.dbis.rwth-aachen.de/SBFManager/MoodleAsync";
+        String bot = json.getAsString("botName");
+        String sbfmUrl = "https://git.tech4comp.dbis.rwth-aachen.de/SBFManager/RESTfulChat/" + bot;
         chatResponse.put("channel", channel);
         chatResponse.put("closeContext", false);
 
         if (isActive.containsKey(channel)) {
             if(isActive.getOrDefault(channel, false)) {
-                chatResponse.put("text", "Einen Moment bitte, ich verarbeit noch deine erste Nachricht.");
+                chatResponse.put("text", "Einen Moment bitte, ich verarbeite noch deine letzte Nachricht.");
                 chatResponse.put("closeContext", false);
                 return Response.ok().entity(chatResponse.toJSONString()).build();
             }
         }
         
         isActive.put(channel, true);
-
+        System.out.println("Calling async function");
         lmsbotAsync(message, channel, sbfmUrl);
 
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -211,6 +212,7 @@ public class LMSChatbotService extends RESTService {
                         newEvent.put("msg", msg);
                         newEvent.put("channel", channel);
 
+                        System.out.println("Calling lmsbot-service");
                         // Make the POST request to localhost:5000/chat
                         String url = "http://localhost:5000/chat";
                         HttpClient httpClient = HttpClient.newHttpClient();
@@ -269,13 +271,13 @@ public class LMSChatbotService extends RESTService {
 
     public void callback(String callbackUrl, JSONObject body){
 		try {
-			System.out.println("Starting callback to botmanager with url: " + callbackUrl);
+			System.out.println("Starting callback to botmanager with url: " + callbackUrl + "/MoodleAsync");
 			Client textClient = ClientBuilder.newBuilder().register(MultiPartFeature.class).build();
 			String mp = null;
 			System.out.println(body);
 			mp = body.toJSONString();
 			WebTarget target = textClient
-					.target(callbackUrl);
+					.target(callbackUrl + "/MoodleAsync");
 			Response response = target.request()
 					.post(javax.ws.rs.client.Entity.entity(mp, MediaType.APPLICATION_JSON));
 					String test = response.readEntity(String.class);

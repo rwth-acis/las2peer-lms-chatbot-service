@@ -27,6 +27,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import i5.las2peer.connectors.webConnector.client.ClientResponse;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
@@ -65,7 +66,8 @@ import net.minidev.json.parser.ParseException;
 @ServicePath("/lms-chatbot")
 public class LMSChatbotService extends RESTService {
     private static HashMap<String, Boolean> isActive = new HashMap<String, Boolean>();
-    private Boolean responseOK = false;
+    private static HashMap<String, Boolean> responseOK = new HashMap<String, Boolean>();    
+
     public static String removeBrackets(String input) {
         String regex = "(?<=<)[^>\s]+(?=>)";
         Pattern pattern = Pattern.compile(regex);
@@ -177,27 +179,35 @@ public class LMSChatbotService extends RESTService {
         }
         
         isActive.put(channel, true);
+        responseOK.put(channel, false);
         System.out.println("Calling async function");
         lmsbotAsync(sbfmUrl, message, channel);
 
-        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-
-        if (!responseOK) {
-            chatResponse.put("text", "Bitte warte einen Moment ich denke darüber nach.");
-            chatResponse.put("closeContext", false);
-
-            scheduler.scheduleAtFixedRate(() -> {
-                System.out.println("callback in scheduler.");
-                if (responseOK) {
-                    chatResponse.clear();
-                    responseOK=false;
-                    scheduler.shutdown();
-                }
-                callback(sbfmUrl, chatResponse);
-            }, 5, 20, TimeUnit.SECONDS);
+        // ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        try {
+            Thread.sleep(3000); 
+        } catch (InterruptedException e) {
+            // Handle interruption if needed
+            e.printStackTrace();
         }
 
-        return Response.ok().entity(chatResponse.toString()).build();
+        if (!responseOK.get(channel)) {
+            chatResponse.put("text", "Bitte warte einen Moment ich denke darüber nach.");
+
+            // scheduler.scheduleAtFixedRate(() -> {
+            //     System.out.println("callback in scheduler.");
+            //     callback(sbfmUrl, chatResponse);
+            //     if (responseOK) {
+            //         chatResponse.clear();
+            //         responseOK=false;
+            //         scheduler.shutdown();
+            //     }
+            // }, 0, 20, TimeUnit.SECONDS);
+            return Response.ok().entity(chatResponse.toString()).build();
+        } else {
+            responseOK.put(channel, false);
+            return Response.status(Status.OK).entity("").build();
+        }
     }
 
     public void lmsbotAsync(String sbfmUrl, String msg, String channel){
@@ -228,12 +238,12 @@ public class LMSChatbotService extends RESTService {
                         int responseCode = serviceResponse.statusCode();
 
                         if (responseCode == HttpURLConnection.HTTP_OK) {
-                            responseOK = true;
+                            responseOK.put(channel, true);
                             System.out.println("Response from service: " + serviceResponse.body());
                             chatResponse.put("text", serviceResponse.body());
                             callback(sbfmUrl, chatResponse);
                         } else if (responseCode == HttpURLConnection.HTTP_INTERNAL_ERROR) {
-                            responseOK = true;
+                            responseOK.put(channel, true);
                             // Handle unsuccessful response
                             chatResponse.put("text", "Error has occured.");
                             callback(sbfmUrl, chatResponse);
@@ -241,13 +251,13 @@ public class LMSChatbotService extends RESTService {
                         //System.out.println(chatResponse);
                         isActive.put(channel, false);
                     } catch ( IOException | InterruptedException e) {
-                        responseOK = true;
+                        responseOK.put(channel, true);
                         e.printStackTrace();
                         chatResponse.put("text", "An error has occurred.");
                         isActive.put(channel, false);
                         callback(sbfmUrl, chatResponse);
                     } catch (Throwable e) {
-                        responseOK = true;
+                        responseOK.put(channel, true);
                         e.printStackTrace();
                         chatResponse.put("text", "An unknown error has occurred.");
                         isActive.put(channel, false);

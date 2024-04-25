@@ -188,12 +188,12 @@ public class LMSChatbotService extends RESTService {
 
             scheduler.scheduleAtFixedRate(() -> {
                 System.out.println("callback in scheduler.");
-                callback(sbfmUrl, chatResponse);
                 if (responseOK) {
                     chatResponse.clear();
                     responseOK=false;
                     scheduler.shutdown();
                 }
+                callback(sbfmUrl, chatResponse);
             }, 5, 20, TimeUnit.SECONDS);
         }
 
